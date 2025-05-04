@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MODAL - Aplikasi Pembukuan</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Firebase App (harus selalu disertakan) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    
+    <!-- Firebase Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Firebase Analytics -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics-compat.js"></script>
+    
+    <style>
+        .modal-bg {
+            background: linear-gradient(135deg, #6366F1 0%, #3B82F6 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        .table-hover tr:hover {
+            background-color: rgba(219, 234, 254, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="modal-bg text-white p-4 shadow-lg">
+        <div class="container mx-auto">
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl md:text-3xl font-bold tracking-wider">MODAL</h1>
+                <div class="flex items-center space-x-2">
+                    <p id="total-items" class="text-sm bg-white bg-opacity-20 py-1 px-3 rounded-full">0 Item</p>
+                    <p id="total-value" class="text-sm bg-white bg-opacity-20 py-1 px-3 rounded-full">Rp 0</p>
+                </div>
+            </div>
+            <p class="text-sm md:text-md mt-1 text-blue-100">Aplikasi Pembukuan Modern</p>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-6 max-w-full">
+        <!-- Input Form -->
+        <div class="glass-effect rounded-xl p-6 shadow-xl mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Tambah Barang Baru</h2>
+            <div class="grid md:grid-cols-4 gap-4">
+                <div>
+                    <label for="item-name" class="block text-sm font-medium text-gray-700 mb-1">Nama Barang</label>
+                    <input type="text" id="item-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="item-price" class="block text-sm font-medium text-gray-700 mb-1">Harga (Rp)</label>
+                    <input type="text" id="item-price" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="item-quantity" class="block text-sm font-medium text-gray-700 mb-1">Jumlah</label>
+                    <input type="number" id="item-quantity" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" min="1">
+                </div>
+                <div class="flex items-end">
+                    <button id="add-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300 flex justify-center items-center">
+                        <i class="fas fa-plus-circle mr-2"></i> Tambahkan
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search & Filter -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+            <div class="w-full md:w-1/3">
+                <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg">
+                    <i class="fas fa-calendar-alt mr-2"></i>
+                    <span id="current-date">Loading...</span>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button id="sort-name" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                    <i class="fas fa-sort-alpha-down mr-1"></i> Nama
+                </button>
+                <button id="sort-price" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                    <i class="fas fa-sort-numeric-down mr-1"></i> Harga
+                </button>
+                <button id="sort-quantity" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                    <i class="fas fa-sort-amount-down mr-1"></i> Jumlah
+                </button>
+            </div>
+        </div>
+
+        <!-- Inventory Table -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden w-full">
+            <div class="overflow-x-auto">
+                <table class="w-full table-fixed table-hover">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="w-10 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
+                            <th class="w-1/6 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Barang</th>
+                            <th class="w-1/6 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Harga</th>
+                            <th class="w-1/8 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                            <th class="w-1/6 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                            <th class="w-1/6 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                            <th class="w-1/4 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-table" class="divide-y divide-gray-200">
+                        <!-- Table rows will be dynamically generated here -->
+                        <tr class="text-center">
+                            <td colspan="7" class="px-6 py-8 text-gray-500">
+                                Belum ada data barang. Tambahkan barang baru dengan form di atas.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Export & Import Buttons -->
+        <div class="flex justify-end mt-6 gap-3">
+            <button id="export-btn" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300">
+                <i class="fas fa-file-export mr-2"></i> Export Data
+            </button>
+            <button id="import-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300">
+                <i class="fas fa-file-import mr-2"></i> Import Data
+            </button>
+            <input type="file" id="import-file" accept=".json,.xlsx,.xls" class="hidden">
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-xl transform transition-transform duration-300 translate-y-24 opacity-0 flex items-center">
+        <i id="toast-icon" class="mr-2"></i>
+        <span id="toast-message"></span>
+    </div>
+
+    <!-- Inisialisasi Firebase -->
+    <script>
+        // Konfigurasi Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDuSxp0X-rarxxeSXzAUhpBU518imOryVs",
+            authDomain: "modal-9cf70.firebaseapp.com",
+            projectId: "modal-9cf70",
+            storageBucket: "modal-9cf70.firebasestorage.app",
+            messagingSenderId: "307286542754",
+            appId: "1:307286542754:web:0f599972f685cbe02e8afb",
+            measurementId: "G-8H64CKQRN2"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const analytics = firebase.analytics();
+        
+        // Initialize Firestore
+        const db = firebase.firestore();
+        console.log("Firebase dan Firestore berhasil diinisialisasi");
+    </script>
+
+    <script>
+        // Global variables
+        let inventory = [];
+        let currentSort = { field: null, ascending: true };
+        let editItemId = null;
+
+        // Format number with thousand separator
+        function formatNumber(num) {
+            return new Intl.NumberFormat('id-ID').format(num);
+        }
+
+        // Parse price string to number
+        function parsePrice(str) {
+            if (!str) return 0;
+            return parseInt(str.replace(/\D/g, '')) || 0;
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toast-icon');
+            const toastMessage = document.getElementById('toast-message');
+            
+            if (!toast || !toastIcon || !toastMessage) return;
+            
+            toastMessage.textContent = message;
+            
+            if (type === 'success') {
+                toastIcon.className = 'fas fa-check-circle mr-2 text-green-400';
+            } else if (type === 'error') {
+                toastIcon.className = 'fas fa-exclamation-circle mr-2 text-red-400';
+            } else if (type === 'info') {
+                toastIcon.className = 'fas fa-info-circle mr-2 text-blue-400';
+            }
+            
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 3000);
+        }
+
+        // Format price input with thousand separator
+        document.getElementById('item-price').addEventListener('input', function() {
+            const val = this.value.replace(/\D/g, '');
+            this.value = val ? formatNumber(val) : '';
+        });
+
+        // Calculate totals
+        function calculateTotals() {
+            const totalItemsElement = document.getElementById('total-items');
+            const totalValueElement = document.getElementById('total-value');
+            
+            if (!totalItemsElement || !totalValueElement) return;
+            
+            const totalItems = inventory.reduce((sum, item) => sum + item.quantity, 0);
+            const totalValue = inventory.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            totalItemsElement.textContent = `${totalItems} Item`;
+            totalValueElement.textContent = `Rp ${formatNumber(totalValue)}`;
+        }
+
+        // Render inventory table
+        function renderInventory(items = inventory) {
+            const inventoryTable = document.getElementById('inventory-table');
+            
+            if (!inventoryTable) return;
+            
+            if (items.length === 0) {
+                inventoryTable.innerHTML = `
+                    <tr class="text-center">
+                        <td colspan="7" class="px-6 py-8 text-gray-500">
+                            Belum ada data barang. Tambahkan barang baru dengan form di atas.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            inventoryTable.innerHTML = items.map((item, index) => `
+                <tr>
+                    <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900">${index + 1}</td>
+                    <td class="px-3 py-3 text-sm font-medium text-gray-900 truncate">${item.name}</td>
+                    <td class="px-3 py-3 text-sm text-gray-500">Rp ${formatNumber(item.price)}</td>
+                    <td class="px-3 py-3 text-sm text-gray-500">${item.quantity}</td>
+                    <td class="px-3 py-3 text-sm text-gray-500">Rp ${formatNumber(item.price * item.quantity)}</td>
+                    <td class="px-3 py-3 text-sm text-gray-500">${formatDate(item.date || new Date())}</td>
+                    <td class="px-3 py-3 text-sm font-medium">
+                        <button class="edit-btn bg-indigo-100 hover:bg-indigo-200 text-indigo-700 py-1 px-2 rounded-lg transition duration-300 mr-1" data-id="${item.id}">
+                            <i class="fas fa-edit mr-1"></i> Edit
+                        </button>
+                        <button class="delete-btn bg-red-100 hover:bg-red-200 text-red-700 py-1 px-2 rounded-lg transition duration-300" data-id="${item.id}">
+                            <i class="fas fa-trash-alt mr-1"></i> Hapus
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            // Add event listeners to edit and delete buttons
+            document.querySelectorAll('.edit-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    handleEdit(this.dataset.id);
+                });
+            });
+            
+            document.querySelectorAll('.delete-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    handleDelete(this.dataset.id);
+                });
+            });
+        }
+
+        // Load data from Firestore
+        function loadDataFromFirestore() {
+            showToast("Memuat data...", "info");
+            
+            db.collection("inventory").orderBy("timestamp", "desc").get()
+                .then((querySnapshot) => {
+                    inventory = [];
+                    querySnapshot.forEach((doc) => {
+                        inventory.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    
+                    renderInventory();
+                    calculateTotals();
+                    showToast("Data berhasil dimuat dari database!", "success");
+                })
+                .catch((error) => {
+                    console.error("Error loading data from Firestore:", error);
+                    showToast("Gagal memuat data dari database!", "error");
+                    
+                    // Fallback ke localStorage jika ada
+                    const savedData = localStorage.getItem('modalInventory');
+                    if (savedData) {
+                        inventory = JSON.parse(savedData);
+                        renderInventory();
+                        calculateTotals();
+                        showToast("Data dimuat dari penyimpanan lokal", "info");
+                    } else {
+                        // Jika tidak ada data di localStorage, tambahkan data sampel
+                        addSampleData();
+                    }
+                });
+        }
+
+        // Simpan ke localStorage sebagai backup
+        function saveDataToLocalStorage() {
+            try {
+                localStorage.setItem('modalInventory', JSON.stringify(inventory));
+                console.log('Data berhasil disimpan ke localStorage (backup).');
+            } catch (error) {
+                console.error('Error saving data to localStorage:', error);
+            }
+        }
+
+        // Add item
+        function addItem(name, price, quantity) {
+            const now = new Date();
+            const newItem = {
+                name,
+                price: Number(price),
+                quantity: Number(quantity),
+                date: now.toISOString().split('T')[0], // Store date in YYYY-MM-DD format
+                timestamp: now.toISOString()
+            };
+            
+            showToast("Menyimpan data...", "info");
+            
+            // Simpan ke Firestore
+            db.collection("inventory").add(newItem)
+                .then((docRef) => {
+                    console.log("Document written with ID:", docRef.id);
+                    
+                    // Update item dengan ID dari Firestore
+                    const savedItem = {
+                        ...newItem,
+                        id: docRef.id
+                    };
+                    
+                    // Tambahkan ke array inventory
+                    inventory.push(savedItem);
+                    saveDataToLocalStorage(); // Backup ke localStorage
+                    renderInventory();
+                    calculateTotals();
+                    showToast('Barang berhasil ditambahkan!', 'success');
+                })
+                .catch((error) => {
+                    console.error("Error adding document:", error);
+                    showToast('Gagal menambahkan barang! ' + error.message, 'error');
+                    
+                    // Fallback ke penyimpanan lokal
+                    const itemWithId = {
+                        ...newItem,
+                        id: Date.now().toString()
+                    };
+                    inventory.push(itemWithId);
+                    saveDataToLocalStorage();
+                    renderInventory();
+                    calculateTotals();
+                    showToast('Barang disimpan secara lokal (offline mode)', 'info');
+                });
+        }
+
+        // Edit item
+        function editItem(id, name, price, quantity) {
+            const index = inventory.findIndex(item => item.id === id);
+            if (index !== -1) {
+                // Keep the original date and just update other fields
+                const updatedItem = {
+                    ...inventory[index],
+                    name,
+                    price: Number(price),
+                    quantity: Number(quantity)
+                };
+                
+                showToast("Memperbarui data...", "info");
+                
+                // Update di Firestore
+                db.collection("inventory").doc(id).update({
+                    name: updatedItem.name,
+                    price: updatedItem.price,
+                    quantity: updatedItem.quantity
+                })
+                .then(() => {
+                    // Update in local array
+                    inventory[index] = updatedItem;
+                    saveDataToLocalStorage(); // Backup to localStorage
+                    renderInventory();
+                    calculateTotals();
+                    showToast('Barang berhasil diperbarui!', 'success');
+                    
+                    // Reset add button style
+                    const addBtn = document.getElementById('add-btn');
+                    if (addBtn) {
+                        addBtn.innerHTML = '<i class="fas fa-plus-circle mr-2"></i> Tambahkan';
+                        addBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                        addBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+                    }
+                    
+                    editItemId = null;
+                })
+                .catch((error) => {
+                    console.error("Error updating document:", error);
+                    showToast('Gagal memperbarui barang! ' + error.message, 'error');
+                    
+                    // Fallback to local update
+                    inventory[index] = updatedItem;
+                    saveDataToLocalStorage();
+                    renderInventory();
+                    calculateTotals();
+                    
+                    // Reset add button style
+                    const addBtn = document.getElementById('add-btn');
+                    if (addBtn) {
+                        addBtn.innerHTML = '<i class="fas fa-plus-circle mr-2"></i> Tambahkan';
+                        addBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                        addBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+                    }
+                    
+                    editItemId = null;
+                });
+            }
+        }
+
+        // Delete item
+        function deleteItem(id) {
+            showToast("Menghapus data...", "info");
+            
+            // Delete from Firestore
+            db.collection("inventory").doc(id).delete()
+                .then(() => {
+                    // Remove from local array
+                    inventory = inventory.filter(item => item.id !== id);
+                    saveDataToLocalStorage(); // Backup to localStorage
+                    renderInventory();
+                    calculateTotals();
+                    showToast('Barang berhasil dihapus!', 'success');
+                })
+                .catch((error) => {
+                    console.error("Error removing document:", error);
+                    showToast('Gagal menghapus barang! ' + error.message, 'error');
+                    
+                    // Fallback to local delete
+                    inventory = inventory.filter(item => item.id !== id);
+                    saveDataToLocalStorage();
+                    renderInventory();
+                    calculateTotals();
+                });
+        }
+
+        // Handle add button click
+        document.getElementById('add-btn').addEventListener('click', function() {
+            const nameInput = document.getElementById('item-name');
+            const priceInput = document.getElementById('item-price');
+            const quantityInput = document.getElementById('item-quantity');
+            
+            if (!nameInput || !priceInput || !quantityInput) {
+                showToast('Form elements not found', 'error');
+                return;
+            }
+            
+            const name = nameInput.value.trim();
+            const priceStr = priceInput.value.trim();
+            const quantityStr = quantityInput.value.trim();
+            
+            if (!name || !priceStr || !quantityStr) {
+                showToast('Semua kolom harus diisi!', 'error');
+                return;
+            }
+            
+            const price = parsePrice(priceStr);
+            const quantity = parseInt(quantityStr, 10);
+            
+            if (editItemId) {
+                // Update existing item
+                editItem(editItemId, name, price, quantity);
+            } else {
+                // Add new item
+                addItem(name, price, quantity);
+            }
+            
+            // Reset form
+            nameInput.value = '';
+            priceInput.value = '';
+            quantityInput.value = '';
+            nameInput.focus();
+        });
+
+        // Handle edit button click
+        function handleEdit(id) {
+            const item = inventory.find(item => item.id === id);
+            
+            if (!item) {
+                console.error('Item not found with ID:', id);
+                return;
+            }
+            
+            const nameInput = document.getElementById('item-name');
+            const priceInput = document.getElementById('item-price');
+            const quantityInput = document.getElementById('item-quantity');
+            const addBtn = document.getElementById('add-btn');
+            
+            if (!nameInput || !priceInput || !quantityInput || !addBtn) {
+                showToast('Form elements not found', 'error');
+                return;
+            }
+            
+            nameInput.value = item.name;
+            priceInput.value = formatNumber(item.price); 
+            quantityInput.value = item.quantity;
+            
+            editItemId = id;
+            addBtn.innerHTML = '<i class="fas fa-save mr-2"></i> Perbarui';
+            addBtn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+            addBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+            
+            showToast('Edit mode aktif. Ubah data lalu klik Perbarui', 'info');
+            
+            // Scroll to form
+            nameInput.scrollIntoView({ behavior: 'smooth' });
+            nameInput.focus();
+        }
+
+        // Handle delete button click
+        function handleDelete(id) {
+            const item = inventory.find(item => item.id === id);
+            
+            if (!item) {
+                console.error('Item not found with ID:', id);
+                return;
+            }
+            
+            // Direct delete without confirmation
+            deleteItem(id);
+        }
+
+        // Handle sorting
+        document.getElementById('sort-name').addEventListener('click', function() {
+            handleSort('name');
+        });
+        
+        document.getElementById('sort-price').addEventListener('click', function() {
+            handleSort('price');
+        });
+        
+        document.getElementById('sort-quantity').addEventListener('click', function() {
+            handleSort('quantity');
+        });
+        
+        function handleSort(field) {
+            if (currentSort.field === field) {
+                currentSort.ascending = !currentSort.ascending;
+            } else {
+                currentSort.field = field;
+                currentSort.ascending = true;
+            }
+            
+            inventory.sort((a, b) => {
+                let comparison = 0;
+                
+                if (field === 'name') {
+                    comparison = a.name.localeCompare(b.name);
+                } else if (field === 'price') {
+                    comparison = a.price - b.price;
+                } else if (field === 'quantity') {
+                    comparison = a.quantity - b.quantity;
+                }
+                
+                return currentSort.ascending ? comparison : -comparison;
+            });
+            
+            renderInventory();
+            
+            // Update sort buttons
+            document.querySelectorAll('#sort-name, #sort-price, #sort-quantity').forEach(btn => {
+                if (!btn) return;
+                
+                const icon = btn.querySelector('i');
+                if (!icon) return;
+                
+                if (btn.id === `sort-${field}`) {
+                    icon.className = currentSort.ascending 
+                        ? `fas fa-sort-${field === 'name' ? 'alpha' : field === 'price' ? 'numeric' : 'amount'}-down mr-1` 
+                        : `fas fa-sort-${field === 'name' ? 'alpha' : field === 'price' ? 'numeric' : 'amount'}-up mr-1`;
+                } else {
+                    icon.className = icon.className.replace('-up', '-down');
+                }
+            });
+        }
+
+        // Export inventory to Excel with custom save location
+        document.getElementById('export-btn').addEventListener('click', function() {
+            if (inventory.length === 0) {
+                showToast('Tidak ada data untuk diekspor!', 'error');
+                return;
+            }
+            
+            // Show location selection dialog
+            const locationDialog = document.createElement('div');
+            locationDialog.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            locationDialog.innerHTML = `
+                <div class="bg-white rounded-xl p-6 max-w-md w-full">
+                    <h3 class="text-xl font-semibold mb-4">Pilih Format dan Lokasi</h3>
+                    
+                    <div class="mb-4">
+                        <p class="font-medium mb-2">Nama File:</p>
+                        <div class="flex items-center">
+                            <input type="text" id="export-filename" class="w-full px-3 py-2 border border-gray-300 rounded-lg" value="MODAL-Inventory-${new Date().toISOString().slice(0, 10)}">
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Ekstensi file (.xlsx atau .json) akan ditambahkan otomatis sesuai format</p>
+                    </div>
+                    
+                    <p class="text-sm text-gray-600 mb-4 bg-blue-50 p-2 rounded-lg">
+                        <i class="fas fa-info-circle mr-1 text-blue-500"></i> 
+                        Browser akan menampilkan dialog penyimpanan file jika Anda memilih "Pilih Lokasi Lain".
+                        Pilihan lokasi lainnya mengikuti pengaturan browser Anda.
+                    </p>
+                    
+                    <div class="flex gap-3 justify-end">
+                        <button id="cancel-export" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            Batal
+                        </button>
+                        <button id="confirm-export" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            Ekspor Data
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(locationDialog);
+            
+            // Handle dialog buttons
+            document.getElementById('cancel-export').addEventListener('click', function() {
+                document.body.removeChild(locationDialog);
+            });
+            
+            document.getElementById('confirm-export').addEventListener('click', function() {
+                const format = document.querySelector('input[name="export-format"]:checked').value;
+                const location = document.querySelector('input[name="save-location"]:checked').value;
+                const filename = document.getElementById('export-filename').value.trim() || `MODAL-Inventory-${new Date().toISOString().slice(0, 10)}`;
+                
+                document.body.removeChild(locationDialog);
+                
+                if (format === 'excel') {
+                    exportToExcel(filename, location);
+                } else {
+                    exportToJson(filename, location);
+                }
+            });
+        });
+
+        // Export to Excel
+        function exportToExcel(filename, location) {
+            try {
+                // Load the SheetJS library dynamically
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                script.async = true;
+                
+                script.onload = function() {
+                    try {
+                        const XLSX = window.XLSX;
+                        
+                        // Prepare data for Excel with formatting
+                        const excelData = [
+                            // Header row
+                            ['No', 'Nama Barang', 'Harga', 'Jumlah', 'Total', 'Tanggal']
+                        ];
+                        
+                        // Data rows
+                        inventory.forEach((item, index) => {
+                            excelData.push([
+                                index + 1,
+                                item.name,
+                                `Rp ${formatNumber(item.price)}`,
+                                item.quantity,
+                                `Rp ${formatNumber(item.price * item.quantity)}`,
+                                formatDate(item.date || new Date())
+                            ]);
+                        });
+                        
+                        // Calculate total row
+                        const totalItems = inventory.reduce((sum, item) => sum + item.quantity, 0);
+                        const totalValue = inventory.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                        
+                        // Add a blank row and total row
+                        excelData.push([]);
+                        excelData.push(['', 'TOTAL', '', totalItems, `Rp ${formatNumber(totalValue)}`, '']);
+                        
+                        // Create a new workbook
+                        const wb = XLSX.utils.book_new();
+                        
+                        // Create a worksheet from the data
+                        const ws = XLSX.utils.aoa_to_sheet(excelData);
+                        
+                        // Set column widths
+                        const colWidths = [
+                            { wch: 5 },  // No
+                            { wch: 30 }, // Nama Barang
+                            { wch: 15 }, // Harga
+                            { wch: 10 }, // Jumlah
+                            { wch: 20 }, // Total
+                            { wch: 20 }  // Tanggal
+                        ];
+                        ws['!cols'] = colWidths;
+                        
+                        // Add the worksheet to the workbook
+                        XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+                        
+                        // Ensure filename has correct extension
+                        if (!filename.toLowerCase().endsWith('.xlsx')) {
+                            filename += '.xlsx';
+                        }
+                        
+                        if (location === 'custom') {
+                            // For custom location, use FileSaver approach to trigger save dialog
+                            const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                            
+                            // Create a download link
+                            const link = document.createElement('a');
+                            link.href = URL.createObjectURL(blob);
+                            link.download = filename;
+                            
+                            // This will show the save dialog
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                        } else {
+                            // For pre-defined locations, try to directly save
+                            // Note: Due to browser security, we can't directly save to arbitrary folders
+                            // So this still uses the browser's download mechanism, but gives the user feedback
+                            const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                            
+                            const link = document.createElement('a');
+                            link.href = URL.createObjectURL(blob);
+                            link.download = filename;
+                            
+                            // This will download to browser's default location
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            
+                            // Show toast with location info
+                            let locationMsg = 'folder Downloads';
+                            if (location === 'documents') locationMsg = 'folder Documents';
+                            if (location === 'desktop') locationMsg = 'Desktop';
+                            
+                            showToast(`Data berhasil diekspor ke ${locationMsg}!`, 'success');
+                        }
+                    } catch (err) {
+                        console.error('Error generating Excel:', err);
+                        exportToJson(filename, location); // Fallback to JSON
+                    }
+                };
+                
+                script.onerror = function() {
+                    console.error('Failed to load SheetJS library');
+                    exportToJson(filename, location); // Fallback to JSON
+                };
+                
+                document.head.appendChild(script);
+            } catch (err) {
+                console.error('Error in export process:', err);
+                exportToJson(filename, location); // Fallback to JSON
+            }
+        }
+
+        // Export to JSON
+        function exportToJson(filename, location) {
+            try {
+                const dataStr = JSON.stringify(inventory, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                
+                // Ensure filename has correct extension
+                if (!filename.toLowerCase().endsWith('.json')) {
+                    filename += '.json';
+                }
+                
+                // Create link for download
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', filename);
+                
+                // Trigger download
+                document.body.appendChild(linkElement);
+                linkElement.click();
+                document.body.removeChild(linkElement);
+                
+                // Show toast with location info
+                let locationMsg = 'folder Downloads';
+                if (location === 'documents') locationMsg = 'folder Documents';
+                if (location === 'desktop') locationMsg = 'Desktop';
+                if (location === 'custom') locationMsg = 'lokasi yang Anda pilih';
+                
+                showToast(`Data berhasil diekspor ke ${locationMsg}!`, 'success');
+            } catch (err) {
+                console.error('Error exporting to JSON:', err);
+                showToast('Gagal mengekspor data!', 'error');
+            }
+        }
+
+        // Import inventory
+        document.getElementById('import-btn').addEventListener('click', function() {
+            const importFile = document.getElementById('import-file');
+            if (importFile) importFile.click();
+        });
+
+        document.getElementById('import-file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (file.name.toLowerCase().endsWith('.json')) {
+                // Import JSON
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        
+                        if (Array.isArray(importedData)) {
+                            // Konfirmasi impor
+                            if (confirm(`Anda akan mengimpor ${importedData.length} item ke database. Lanjutkan?`)) {
+                                showToast("Mengimpor data ke Firebase...", "info");
+                                
+                                // Simpan sementara data lama untuk berjaga-jaga
+                                const oldInventory = [...inventory];
+                                
+                                // Reset inventory untuk impor
+                                inventory = [];
+                                
+                                // Untuk setiap item di data impor
+                                let importedCount = 0;
+                                let promises = [];
+                                
+                                importedData.forEach((item) => {
+                                    // Hapus ID jika ada untuk membuat entry baru di Firestore
+                                    const newItem = { ...item };
+                                    if (newItem.id) delete newItem.id;
+                                    
+                                    // Pastikan timestamp ada
+                                    if (!newItem.timestamp) {
+                                        newItem.timestamp = new Date().toISOString();
+                                    }
+                                    
+                                    // Tambahkan ke Firestore
+                                    const promise = db.collection("inventory").add(newItem)
+                                        .then((docRef) => {
+                                            console.log("Document imported with ID:", docRef.id);
+                                            importedCount++;
+                                            
+                                            // Tambahkan ke inventory lokal dengan ID baru
+                                            inventory.push({
+                                                id: docRef.id,
+                                                ...newItem
+                                            });
+                                        })
+                                        .catch((error) => {
+                                            console.error("Error importing item:", error);
+                                            throw error;
+                                        });
+                                    
+                                    promises.push(promise);
+                                });
+                                
+                                // Tunggu semua operasi selesai
+                                Promise.all(promises)
+                                    .then(() => {
+                                        renderInventory();
+                                        calculateTotals();
+                                        saveDataToLocalStorage(); // Backup to localStorage
+                                        showToast(`${importedCount} item berhasil diimpor ke database!`, 'success');
+                                    })
+                                    .catch((error) => {
+                                        console.error("Error during import:", error);
+                                        showToast('Gagal mengimpor beberapa data! ' + error.message, 'error');
+                                        
+                                        // Kembalikan data lama jika ada kesalahan
+                                        inventory = oldInventory;
+                                        renderInventory();
+                                        calculateTotals();
+                                    });
+                            }
+                        } else {
+                            showToast('Format file tidak valid!', 'error');
+                        }
+                    } catch (error) {
+                        showToast('Gagal membaca file JSON!', 'error');
+                        console.error(error);
+                    }
+                };
+                
+                reader.readAsText(file);
+            } else if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
+                // Import Excel
+                showToast("Mengimpor file Excel...", "info");
+                
+                // Dynamically load SheetJS
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                script.async = true;
+                
+                script.onload = function() {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            
+                            // Get first worksheet
+                            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                            
+                            // Convert to JSON
+                            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                            
+                            if (jsonData.length > 0) {
+                                // Konfirmasi impor
+                                if (confirm(`Anda akan mengimpor ${jsonData.length} item ke database. Lanjutkan?`)) {
+                                    showToast("Mengimpor data ke Firebase...", "info");
+                                    
+                                    // Simpan sementara data lama untuk berjaga-jaga
+                                    const oldInventory = [...inventory];
+                                    
+                                    // Reset inventory untuk impor
+                                    inventory = [];
+                                    
+                                    // Untuk setiap item di data impor
+                                    let importedCount = 0;
+                                    let promises = [];
+                                    
+                                    jsonData.forEach((row) => {
+                                        // Dapatkan nama, harga, dan jumlah dari baris
+                                        // Catatan: Nama kolom di Excel harus sesuai dengan nama properti yang diharapkan
+                                        const newItem = {
+                                            name: row.Nama || row.name || row['Nama Barang'] || 'Item Tanpa Nama',
+                                            price: Number(row.Harga || row.price || row['Harga'] || 0),
+                                            quantity: Number(row.Jumlah || row.quantity || row['Jumlah'] || 1),
+                                            date: new Date().toISOString().split('T')[0],
+                                            timestamp: new Date().toISOString()
+                                        };
+                                        
+                                        // Tambahkan ke Firestore
+                                        const promise = db.collection("inventory").add(newItem)
+                                            .then((docRef) => {
+                                                console.log("Document imported with ID:", docRef.id);
+                                                importedCount++;
+                                                
+                                                // Tambahkan ke inventory lokal dengan ID baru
+                                                inventory.push({
+                                                    id: docRef.id,
+                                                    ...newItem
+                                                });
+                                            })
+                                            .catch((error) => {
+                                                console.error("Error importing item:", error);
+                                                throw error;
+                                            });
+                                        
+                                        promises.push(promise);
+                                    });
+                                    
+                                    // Tunggu semua operasi selesai
+                                    Promise.all(promises)
+                                        .then(() => {
+                                            renderInventory();
+                                            calculateTotals();
+                                            saveDataToLocalStorage(); // Backup to localStorage
+                                            showToast(`${importedCount} item berhasil diimpor ke database!`, 'success');
+                                        })
+                                        .catch((error) => {
+                                            console.error("Error during import:", error);
+                                            showToast('Gagal mengimpor beberapa data! ' + error.message, 'error');
+                                            
+                                            // Kembalikan data lama jika ada kesalahan
+                                            inventory = oldInventory;
+                                            renderInventory();
+                                            calculateTotals();
+                                        });
+                                }
+                            } else {
+                                showToast('File Excel tidak berisi data yang valid!', 'error');
+                            }
+                        } catch (error) {
+                            showToast('Gagal membaca file Excel!', 'error');
+                            console.error(error);
+                        }
+                    };
+                    
+                    reader.readAsArrayBuffer(file);
+                };
+                
+                script.onerror = function() {
+                    console.error('Failed to load SheetJS library');
+                    showToast('Gagal memuat library untuk membaca Excel!', 'error');
+                };
+                
+                document.head.appendChild(script);
+            } else {
+                showToast('Format file tidak didukung!', 'error');
+            }
+            
+            // Reset file input
+            e.target.value = '';
+        });
+
+        // Add sample data
+        function addSampleData() {
+            if (inventory.length === 0) {
+                const today = new Date().toISOString().split('T')[0];
+                
+                const sampleData = [
+                    {
+                        name: 'Laptop Asus',
+                        price: 8500000,
+                        quantity: 5,
+                        date: today,
+                        timestamp: new Date().toISOString()
+                    },
+                    {
+                        name: 'Mouse Wireless',
+                        price: 150000,
+                        quantity: 20,
+                        date: today,
+                        timestamp: new Date().toISOString()
+                    },
+                    {
+                        name: 'Keyboard Mechanical',
+                        price: 850000,
+                        quantity: 10,
+                        date: today,
+                        timestamp: new Date().toISOString()
+                    }
+                ];
+                
+                showToast("Menambahkan data contoh...", "info");
+                
+                // Tambahkan data sampel ke Firestore
+                let promises = [];
+                
+                sampleData.forEach((item) => {
+                    promises.push(
+                        db.collection("inventory").add(item)
+                            .then((docRef) => {
+                                console.log("Sample item added with ID:", docRef.id);
+                                inventory.push({
+                                    id: docRef.id,
+                                    ...item
+                                });
+                            })
+                            .catch((error) => {
+                                console.error("Error adding sample item:", error);
+                                // Jika gagal, tambahkan secara lokal saja
+                                const newItem = {
+                                    ...item,
+                                    id: Date.now().toString() + Math.floor(Math.random() * 1000)
+                                };
+                                inventory.push(newItem);
+                            })
+                    );
+                });
+                
+                Promise.all(promises)
+                    .then(() => {
+                        renderInventory();
+                        calculateTotals();
+                        saveDataToLocalStorage();
+                        showToast("Data contoh berhasil ditambahkan!", "success");
+                    })
+                    .catch((error) => {
+                        console.error("Error adding sample data:", error);
+                        renderInventory();
+                        calculateTotals();
+                        saveDataToLocalStorage();
+                        showToast("Beberapa data contoh ditambahkan secara lokal!", "info");
+                    });
+            }
+        }
+
+        // Format date to Indonesian format
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            
+            try {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return ''; // Invalid date
+                
+                const options = { day: 'numeric', month: 'long', year: 'numeric' };
+                return date.toLocaleDateString('id-ID', options);
+            } catch (e) {
+                console.error('Error formatting date:', e);
+                return '';
+            }
+        }
+
+        // Update current date display
+        function updateCurrentDate() {
+            const currentDateElement = document.getElementById('current-date');
+            if (currentDateElement) {
+                const now = new Date();
+                currentDateElement.textContent = formatDate(now);
+            }
+        }
+
+        // Add database connection status indicator
+        function addStatusIndicator() {
+            const headerContainer = document.querySelector('.container.mx-auto');
+            if (headerContainer) {
+                const statusDiv = document.createElement('div');
+                statusDiv.id = 'db-status';
+                statusDiv.className = 'absolute top-4 right-4 flex items-center bg-white bg-opacity-20 py-1 px-3 rounded-full text-xs';
+                statusDiv.innerHTML = '<i class="fas fa-cloud mr-1"></i> <span id="status-text">Terhubung ke Cloud</span>';
+                
+                // Set positioning on the parent container if not already set
+                if (headerContainer.style.position !== 'relative') {
+                    headerContainer.style.position = 'relative';
+                }
+                
+                headerContainer.appendChild(statusDiv);
+                
+                // Tambahkan listener untuk status online/offline
+                window.addEventListener('online', updateConnectionStatus);
+                window.addEventListener('offline', updateConnectionStatus);
+                updateConnectionStatus();
+            }
+        }
+
+        // Update connection status display
+        function updateConnectionStatus() {
+            const statusText = document.getElementById('status-text');
+            const statusIcon = document.querySelector('#db-status i');
+            
+            if (statusText && statusIcon) {
+                if (navigator.onLine) {
+                    statusText.textContent = 'Terhubung ke Cloud';
+                    statusIcon.className = 'fas fa-cloud mr-1';
+                    statusText.parentElement.classList.remove('bg-red-500', 'bg-opacity-40');
+                    statusText.parentElement.classList.add('bg-white', 'bg-opacity-20');
+                } else {
+                    statusText.textContent = 'Mode Offline';
+                    statusIcon.className = 'fas fa-cloud-slash mr-1';
+                    statusText.parentElement.classList.remove('bg-white', 'bg-opacity-20');
+                    statusText.parentElement.classList.add('bg-red-500', 'bg-opacity-40');
+                }
+            }
+        }
+
+        // Initialize the app
+        window.onload = function() {
+            // Update date display
+            updateCurrentDate();
+            
+            // Update date display every minute
+            setInterval(updateCurrentDate, 60000);
+            
+            // Add status indicator
+            addStatusIndicator();
+            
+            // Load data from Firestore
+            loadDataFromFirestore();
+        };
+    </script>
+</body>
+</html>">
+                        <p class="font-medium mb-2">Format File:</p>
+                        <div class="flex flex-col gap-3 mb-4 pl-2">
+                            <label class="flex items-center">
+                                <input type="radio" name="export-format" value="excel" checked class="mr-2">
+                                <i class="fas fa-file-excel text-green-600 mr-2"></i>
+                                Excel (.xlsx) - Format spreadsheet yang mudah diedit
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="export-format" value="json" class="mr-2">
+                                <i class="fas fa-file-code text-blue-600 mr-2"></i>
+                                JSON (.json) - Format data untuk backup/impor
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p class="font-medium mb-2">Lokasi Penyimpanan:</p>
+                        <div class="flex flex-col gap-3 pl-2">
+                            <label class="flex items-center">
+                                <input type="radio" name="save-location" value="downloads" checked class="mr-2">
+                                <i class="fas fa-download text-gray-600 mr-2"></i>
+                                Folder Downloads (Default)
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="save-location" value="custom" class="mr-2">
+                                <i class="fas fa-folder-open text-yellow-600 mr-2"></i>
+                                Pilih Lokasi Lain (Dialog Penyimpanan)
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="save-location" value="documents" class="mr-2">
+                                <i class="fas fa-file-alt text-blue-600 mr-2"></i>
+                                Folder Documents/Dokumen
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="save-location" value="desktop" class="mr-2">
+                                <i class="fas fa-desktop text-indigo-600 mr-2"></i>
+                                Desktop
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4
